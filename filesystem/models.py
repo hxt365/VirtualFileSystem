@@ -1,16 +1,17 @@
 from __future__ import annotations
 
+import datetime
 import json
 import os
 import re
 from pathlib import Path
-from typing import Callable, List
+from typing import Callable, List, Dict, Union
 
 from django.core.exceptions import ValidationError
 from django.db import models
-from django.db.models import QuerySet
 from django.utils import timezone
 
+from filesystem import services as cache
 from filesystem.exceptions import FileExisted, FileNotFound, InvalidFilename, ForbiddenOperation
 
 FILEPATH_REGEX = r'^(\/[a-zA-Z0-9 _-]*)+(\/)*$'  # Any filepath must fully match this regular expression
@@ -136,7 +137,19 @@ class File(AbstractFile):
     # This field takes True value if the file is a folder. Otherwise, this field takes False value.
     is_folder = models.BooleanField()
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._size = None
+
     def to_json(self):
+        """
+        Convert an object to json
+        """
+
+        def default(o):
+            if isinstance(o, (datetime.date, datetime.datetime)):
+                return o.isoformat().replace('+00:00', 'Z')
+
         return json.dumps({
             'id': self.id,
             'name': self.name,
@@ -144,8 +157,9 @@ class File(AbstractFile):
             'updated_at': self.updated_at,
             'parent_id': self.parent_id,
             'data': self.data,
-            'is_folder': self.is_folder
-        })
+            'is_folder': self.is_folder,
+            '_size': self._size
+        }, default=default)
 
     def clean(self):
         """
@@ -159,7 +173,7 @@ class File(AbstractFile):
         """
         if (self.is_folder and self.data is not None) or (not self.is_folder and self.data is None):
             raise ValidationError('a file contains wrong data')
-        if self.parent is None:
+        if self.parent_id is None:
             raise ValidationError('a file must have one parent')
         if not self.parent.is_folder:
             raise ValidationError('a file can not contain other files')
@@ -182,14 +196,20 @@ class File(AbstractFile):
         super().save(*args, **kwargs)
 
     @only_folder
-    def get_children(self) -> QuerySet:
+    def get_children(self) -> List[File]:
         """
         Only work for folders.
         Retrieve all children (neither folders and normal files) that are direct children of the folder.
         :return: a queryset of File instances.
         Note: Return an empty queryset if the folder has none children.
         """
-        return self.children.all()
+        children = [dict_to_file(data) for data in cache.get_children(folder_id=self.id)]
+        if children:
+            return children
+        else:
+            children = list(self.children.all())
+            cache.set_children(self.id, children)
+            return children
 
     @only_folder
     def get_child(self, filename: str) -> File:
@@ -201,7 +221,11 @@ class File(AbstractFile):
         :exception FileNotFound: raised when the file with desired name does not exist.
         """
         try:
-            return self.children.get(name=filename)
+            child = next((child for child in self.get_children() if child.name == filename), None)
+            if child:
+                return child
+            else:
+                return self.children.get(name=filename)
         except File.DoesNotExist:
             raise FileNotFound
 
@@ -218,10 +242,13 @@ class File(AbstractFile):
             self.get_child(file.name)
             raise FileExisted
         except FileNotFound:
+            if file.parent_id:
+                cache.rm_child(file.parent_id, file.id)  # when move files
             file.parent = self
             file.save()
             self.updated_at = timezone.now()
             self.save(force_update=True)
+            cache.add_child(folder=self, file=file)
 
     @only_folder
     def remove_child(self, filename: str) -> None:
@@ -232,9 +259,11 @@ class File(AbstractFile):
         in the middle of the process.
         :param filename: a string of the name of the child, which is about to be deleted.
         """
-        child = self.get_child(filename)
-        child.delete()
+        # Should preserve this order for correct cache invalidation
         self.updated_at = timezone.now()
+        child = self.get_child(filename)
+        cache.rm_child(folder_id=self.id, file_id=child.id)
+        child.delete()
         self.save(force_update=True)
 
     @property
@@ -245,10 +274,26 @@ class File(AbstractFile):
          Size of a normal file is the number of characters in its data.
         :return:
         """
+        if self._size:
+            return self._size
         if not self.is_folder:
-            return len(self.data)
+            self._size = len(self.data)
+            return self._size
         # Get size of a folder
-        sum = 0
+        self._size = 0
         for child in self.get_children():
-            sum += child.size
-        return sum
+            self._size += child.size
+        return self._size
+
+
+def dict_to_file(dict: Dict) -> Union[None, File]:
+    """
+    Convert a dict to a file instance
+    """
+    if dict:
+        size = dict.pop('_size')
+        file = File(**dict)
+        if size:
+            file._size = size
+        return file
+    return None

@@ -1,14 +1,17 @@
 from django.core.exceptions import ValidationError
-from django.db.utils import DataError
+from django.db import DataError
 from django.test import TestCase
 
-from . import repositories as repo
-from .exceptions import FileExisted, FileNotFound, InvalidFilename, MovedIntoSubFolder
+from . import repositories as repo, services as cache
+from .exceptions import FileNotFound, FileExisted, InvalidFilename, MovedIntoSubFolder
 from .models import FilePath, File
 
 
 class BaseTestCase(TestCase):
     databases = '__all__'
+
+    def tearDown(self):
+        cache.r.flushall()
 
 
 class FilePathTestCase(BaseTestCase):
@@ -65,12 +68,13 @@ class FilePathTestCase(BaseTestCase):
 
 class FileModelTestCase(BaseTestCase):
     def setUp(self) -> None:
-        self.root = File.objects.create(name='root', is_folder=True)
+        self.root = repo._get_root_directory()
 
     def test_create_files_then_success(self):
         file1 = File(name='test 1', is_folder=False, data='hello world')
         file2 = File(name='test 2', is_folder=False, data='hello world')
         folder = File(name='test 3', is_folder=True)
+
         self.root.add_child(file1)
         self.root.add_child(folder)
         folder.add_child(file2)

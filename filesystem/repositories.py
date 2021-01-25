@@ -1,10 +1,11 @@
 from queue import SimpleQueue
 from typing import AnyStr, List
-from filesystem import service as cache
+
 from django.db import transaction
 
+from filesystem import services as cache
 from .exceptions import FileNotFound, FileExisted, ForbiddenOperation, MovedIntoSubFolder
-from .models import FilePath, File
+from .models import FilePath, File, dict_to_file
 
 
 def _get_root_directory() -> File:
@@ -17,10 +18,14 @@ def _get_root_directory() -> File:
     # there will be only one root directory created.
     with transaction.atomic(using='serializable'):
         try:
-
+            root = dict_to_file(cache.get_root_data())
+            if root:
+                return root
             root = File.objects.get(name='/')
+            cache.set_root_data(root)
         except File.DoesNotExist:
             root = File.objects.create(name='/', is_folder=True)
+            cache.set_root_data(root)
         return root
 
 

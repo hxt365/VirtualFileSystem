@@ -5,11 +5,15 @@ from rest_framework.reverse import reverse as api_reverse
 from rest_framework.test import APITestCase
 
 from filesystem import repositories as repo
+from filesystem import services as cache
 from filesystem.models import FilePath
 
 
 class BaseAPITestCase(APITestCase):
     databases = '__all__'
+
+    def tearDown(self) -> None:
+        cache.r.flushall()
 
 
 class CdAPITestCase(BaseAPITestCase):
@@ -229,14 +233,20 @@ class LsAPIViewTestCase(BaseAPITestCase):
             ('/', [
                 OrderedDict({
                     'name': '/',
-                    'created_at': str(repo._get_root_directory().created_at)[:-6].replace(' ', 'T') + 'Z',
-                    'updated_at': str(repo._get_root_directory().updated_at)[:-6].replace(' ', 'T') + 'Z',
+                    'created_at': str(repo._get_root_directory().created_at).replace('+00:00', 'Z').replace(' ',
+                                                                                                            'T'),
+                    'updated_at': str(repo._get_root_directory().updated_at).replace('+00:00', 'Z').replace(' ',
+                                                                                                            'T'),
                     'size': 5,
                 }),
                 OrderedDict({
                     'name': 'abc/',
-                    'created_at': str(repo.get_file(filepath=FilePath('/abc')).created_at)[:-6].replace(' ', 'T') + 'Z',
-                    'updated_at': str(repo.get_file(filepath=FilePath('/abc')).updated_at)[:-6].replace(' ', 'T') + 'Z',
+                    'created_at': str(repo.get_file(filepath=FilePath('/abc')).created_at).replace('+00:00',
+                                                                                                   'Z').replace(' ',
+                                                                                                                'T'),
+                    'updated_at': str(repo.get_file(filepath=FilePath('/abc')).updated_at).replace('+00:00',
+                                                                                                   'Z').replace(' ',
+                                                                                                                'T'),
                     'size': 5,
                 }),
             ]),
