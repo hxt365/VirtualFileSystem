@@ -11,7 +11,7 @@ File system is stored in Redis with structure:
 root = id
 file-id:children = set{child_1_id, child_2_id, ...}
 file-id:data = file
-file = json{id, name, created_at, updated_at, size, data, is_folder, parent_id, _size}
+where file = json{id, name, created_at, updated_at, size, data, is_folder, parent_id, _size}
 """
 
 
@@ -52,8 +52,10 @@ def get_data(file_id):
     Get file instsance by its id from cache.
     """
     dump = r.get('{}:data'.format(file_id))
-    data = json.loads(dump)
-    return data
+    if dump:
+        data = json.loads(dump)
+        return data
+    return None
 
 
 def get_children(folder_id):
@@ -61,7 +63,7 @@ def get_children(folder_id):
     Get all children within a folder from cache.
     """
     children_ids = r.smembers('{}:children'.format(folder_id))
-    return [get_data(id) for id in children_ids]
+    return [get_data(int(id)) for id in children_ids]
 
 
 def set_children(folder_id, children):

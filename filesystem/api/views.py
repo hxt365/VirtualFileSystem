@@ -42,6 +42,8 @@ class CommandAPIView(GenericAPIView):
                 return Response(data='Invalid filename.', status=status.HTTP_400_BAD_REQUEST)
             except MovedIntoSubFolder:
                 return Response(data='Cannot move to a subdirectory of itself.', status=status.HTTP_400_BAD_REQUEST)
+            except Exception as e:
+                print(e)
 
     def handle(self, *args, **kwargs) -> Response:
         """
