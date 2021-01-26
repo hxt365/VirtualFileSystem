@@ -2,9 +2,12 @@ import json
 
 import redis
 from decouple import config
+from django.conf import settings
 
 r = redis.StrictRedis(host=config('REDIS_HOST'), port=config('REDIS_PORT'), password=config('REDIS_PASSWORD'),
                       db=0, decode_responses=True)
+
+
 
 """
 File system is stored in Redis with structure:
@@ -36,15 +39,15 @@ def set_root_data(root_file):
     """
     Add root directory to cache.
     """
-    r.set('root_id', root_file.id)
-    r.set('{}:data'.format(root_file.id), root_file.to_json())
+    r.set('root_id', root_file.id, ex=settings.REDIS_DEFAULT_TTL)
+    r.set('{}:data'.format(root_file.id), root_file.to_json(), ex=settings.REDIS_DEFAULT_TTL)
 
 
 def set_data(file):
     """
     Add file data to cache.
     """
-    r.set('{}:data'.format(file.id), file.to_json())
+    r.set('{}:data'.format(file.id), file.to_json(), ex=settings.REDIS_DEFAULT_TTL)
 
 
 def get_data(file_id):
