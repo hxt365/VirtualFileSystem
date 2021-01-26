@@ -10,11 +10,21 @@ from .models import FilePath, File
 class BaseTestCase(TestCase):
     databases = '__all__'
 
-    def tearDown(self):
+    def setUp(self) -> None:
+        cache.r.flushall()
+        self._setUp()
+
+    def _setUp(self) -> None:
+        raise NotImplementedError
+
+    def tearDown(self) -> None:
         cache.r.flushall()
 
 
 class FilePathTestCase(BaseTestCase):
+    def _setUp(self) -> None:
+        pass
+
     def test_valid_filepath(self):
         valid_paths = [
             '/abc',
@@ -67,7 +77,7 @@ class FilePathTestCase(BaseTestCase):
 
 
 class FileModelTestCase(BaseTestCase):
-    def setUp(self) -> None:
+    def _setUp(self) -> None:
         self.root = repo._get_root_directory()
 
     def test_create_files_then_success(self):
@@ -164,7 +174,7 @@ class FileModelTestCase(BaseTestCase):
 
 
 class FileRepositoryTestCase(BaseTestCase):
-    def setUp(self) -> None:
+    def _setUp(self) -> None:
         root = repo._get_root_directory()
         folder1 = File(name='f1', is_folder=True)
         root.add_child(folder1)
@@ -241,6 +251,13 @@ class FileRepositoryTestCase(BaseTestCase):
         repo.update_file(FilePath('/f1/f2/ /test-1'), 'test-2', 'ABC')
         file = repo.get_file(FilePath('/f1/f2/ /test-2'))
         self.assertEqual(file.data, 'ABC')
+        self.assertEqual(file.size, 3)
+        self.assertEqual(repo._get_root_directory().size, 3)
+
+        repo.update_file(FilePath('/f1/f2/ /test-2'), 'test-2', 'A')
+        file = repo.get_file(FilePath('/f1/f2/'))
+        self.assertEqual(file.size, 1)
+        self.assertEqual(repo._get_root_directory().size, 1)
 
         repo.update_file(FilePath('/f1/f2/'), 'f3')
         repo.update_file(FilePath('/f1/f3/'), 'f4', 'test')

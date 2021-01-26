@@ -115,9 +115,10 @@ class LsAPIView(CommandAPIView):
         results = [folder] + sorted(list(folder.get_children()), key=lambda f: f.name)
         # Add trailing slash for folders
         for item in results:
-            if item.is_folder and item.name != '/':
+            if item.is_folder:
                 item.name += '/'
-
+        # Change name of current directory
+        results[0].name = './'
         return Response(data=self.serializer_class({'items': results}).data,
                         status=status.HTTP_200_OK)
 

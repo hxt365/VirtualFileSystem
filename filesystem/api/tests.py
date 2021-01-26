@@ -12,12 +12,19 @@ from filesystem.models import FilePath
 class BaseAPITestCase(APITestCase):
     databases = '__all__'
 
+    def setUp(self) -> None:
+        cache.r.flushall()
+        self._setUp()
+
+    def _setUp(self) -> None:
+        raise NotImplementedError
+
     def tearDown(self) -> None:
         cache.r.flushall()
 
 
 class CdAPITestCase(BaseAPITestCase):
-    def setUp(self) -> None:
+    def _setUp(self) -> None:
         self.URL = api_reverse('filesystem:cd')
         repo.create_file(FilePath('/f1/f2/f3/test'), p_flag=True, data='test')
         repo.create_file(FilePath('/f1/f4/test'), p_flag=True, data='test')
@@ -37,7 +44,7 @@ class CdAPITestCase(BaseAPITestCase):
 
 
 class CrAPITestCase(BaseAPITestCase):
-    def setUp(self) -> None:
+    def _setUp(self) -> None:
         self.URL = api_reverse('filesystem:cr')
 
     def test_cr_then_201_CREATED(self):
@@ -71,7 +78,7 @@ class CrAPITestCase(BaseAPITestCase):
 
 
 class CatAPITestCase(BaseAPITestCase):
-    def setUp(self) -> None:
+    def _setUp(self) -> None:
         self.URL = api_reverse('filesystem:cat')
         repo.create_file(filepath=FilePath('/f1/f2/f3/test'), p_flag=True, data='hello')
         repo.create_file(filepath=FilePath('/f1/f2/f3/f4'), p_flag=True)
@@ -96,7 +103,7 @@ class CatAPITestCase(BaseAPITestCase):
 
 
 class UpAPITestCase(BaseAPITestCase):
-    def setUp(self) -> None:
+    def _setUp(self) -> None:
         self.URL = api_reverse('filesystem:up')
         repo.create_file(filepath=FilePath('/f1/f2/f3/test'), p_flag=True, data='hello')
         repo.create_file(filepath=FilePath('/f1/f2/f3/f4'), p_flag=True)
@@ -131,7 +138,7 @@ class UpAPITestCase(BaseAPITestCase):
 
 
 class MvAPITestCase(BaseAPITestCase):
-    def setUp(self) -> None:
+    def _setUp(self) -> None:
         self.URL = api_reverse('filesystem:mv')
         repo.create_file(filepath=FilePath('/f1/f2/f3/test'), p_flag=True, data='hello')
         repo.create_file(filepath=FilePath('/f1/f2/f3/f4'), p_flag=True)
@@ -164,7 +171,7 @@ class MvAPITestCase(BaseAPITestCase):
 
 
 class RmAPIViewTestCase(BaseAPITestCase):
-    def setUp(self) -> None:
+    def _setUp(self) -> None:
         self.URL = api_reverse('filesystem:rm')
         repo.create_file(filepath=FilePath('/f1/f2/f3/test'), p_flag=True, data='hello')
         repo.create_file(filepath=FilePath('/f1/f2/f3/f4'), p_flag=True)
@@ -185,7 +192,7 @@ class RmAPIViewTestCase(BaseAPITestCase):
 
 
 class FindAPIViewTestCase(BaseAPITestCase):
-    def setUp(self) -> None:
+    def _setUp(self) -> None:
         self.URL = api_reverse('filesystem:find')
         repo.create_file(filepath=FilePath('/abc/def/agh'), p_flag=True, data='hello')
         repo.create_file(filepath=FilePath('/abc/kkk/jkl/abc'), p_flag=True)
@@ -223,7 +230,7 @@ class FindAPIViewTestCase(BaseAPITestCase):
 
 
 class LsAPIViewTestCase(BaseAPITestCase):
-    def setUp(self) -> None:
+    def _setUp(self) -> None:
         self.URL = api_reverse('filesystem:ls')
         repo.create_file(filepath=FilePath('/abc/def/agh'), p_flag=True, data='hello')
         repo.create_file(filepath=FilePath('/abc/kkk/jkl/abc'), p_flag=True)
@@ -232,7 +239,7 @@ class LsAPIViewTestCase(BaseAPITestCase):
         testcases = [
             ('/', [
                 OrderedDict({
-                    'name': '/',
+                    'name': './',
                     'created_at': str(repo._get_root_directory().created_at).replace('+00:00', 'Z').replace(' ',
                                                                                                             'T'),
                     'updated_at': str(repo._get_root_directory().updated_at).replace('+00:00', 'Z').replace(' ',

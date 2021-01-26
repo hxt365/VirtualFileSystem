@@ -18,9 +18,9 @@ def _get_root_directory() -> File:
     # there will be only one root directory created.
     with transaction.atomic(using='serializable'):
         try:
-            root = dict_to_file(cache.get_root_data())
-            if root:
-                return root
+            cache_root = cache.get_root_data()
+            if cache_root:
+                return dict_to_file(cache_root)
             root = File.objects.get(name='/')
             cache.set_root_data(root)
         except File.DoesNotExist:
@@ -105,7 +105,10 @@ def update_file(filepath: FilePath, new_name: AnyStr, new_data: AnyStr = None) -
     file.name = new_name
     if not file.is_folder and new_data:
         file.data = new_data
+        file._size = len(new_data)
     file.save()
+    cache.set_data(file)  # invalidate cache
+    cache.bubble_delete(file.parent_id, cache.get_root_id())  # size may change, so delete all files bottom up
     return file
 
 

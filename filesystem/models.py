@@ -139,7 +139,7 @@ class File(AbstractFile):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self._size = None
+        self._size = None  # See size property method bellow
 
     def to_json(self):
         """
@@ -203,13 +203,25 @@ class File(AbstractFile):
         :return: a queryset of File instances.
         Note: Return an empty queryset if the folder has none children.
         """
-        children = [dict_to_file(data) for data in cache.get_children(folder_id=self.id)]
-        if children:
+        cache_children_ids = cache.get_children_ids(folder_id=self.id)
+        if cache_children_ids:
+            children = [self._get_child_by_id(id) for id in cache_children_ids]
             return children
         else:
             children = list(self.children.all())
             cache.set_children(self.id, children)
             return children
+
+    @only_folder
+    def _get_child_by_id(self, file_id: int) -> File:
+        cache_data = cache.get_data(file_id=file_id)
+        if cache_data:
+            file = dict_to_file(cache_data)
+            return file
+        else:
+            file = self.children.get(id=file_id)
+            cache.set_data(file)
+            return file
 
     @only_folder
     def get_child(self, filename: str) -> File:
@@ -221,9 +233,13 @@ class File(AbstractFile):
         :exception FileNotFound: raised when the file with desired name does not exist.
         """
         try:
-            child = next((child for child in self.get_children() if child.name == filename), None)
-            if child:
-                return child
+            children = self.get_children()
+            if children:
+                # Search child by name
+                child = next((child for child in children if child.name == filename), None)
+                if child:
+                    return child
+                raise FileNotFound
             else:
                 return self.children.get(name=filename)
         except File.DoesNotExist:
@@ -269,31 +285,35 @@ class File(AbstractFile):
     @property
     def size(self):
         """
-        Get size of the file.
+        Get size of the file. We calculate the size every time to get the consistent value.
          Size of a folder is the total size of all files within the folder.
          Size of a normal file is the number of characters in its data.
         :return:
         """
-        if self._size:
-            return self._size
-        if not self.is_folder:
-            self._size = len(self.data)
-            return self._size
-        # Get size of a folder
-        self._size = 0
-        for child in self.get_children():
-            self._size += child.size
+        # check data in cache
+        cache_data = cache.get_data(file_id=self.id)
+        if cache_data and cache_data['_size'] is not None:
+            self._size = cache_data['_size']
+        else:
+            if not self.is_folder:
+                self._size = len(self.data)
+            else:
+                self._size = 0
+                for child in self.get_children():
+                    self._size += child.size
+
+        cache.set_data(file=self)  # update size
         return self._size
 
 
-def dict_to_file(dict: Dict) -> Union[None, File]:
+def dict_to_file(dict: Dict) -> Union[File]:
     """
     Convert a dict to a file instance
     """
-    if dict:
+    size = None
+    if '_size' in dict:
         size = dict.pop('_size')
-        file = File(**dict)
-        if size:
-            file._size = size
-        return file
-    return None
+    file = File(**dict)
+    if size:
+        file._size = size
+    return file

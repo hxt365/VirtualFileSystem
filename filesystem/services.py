@@ -58,12 +58,14 @@ def get_data(file_id):
     return None
 
 
-def get_children(folder_id):
+def get_children_ids(folder_id):
     """
     Get all children within a folder from cache.
     """
     children_ids = r.smembers('{}:children'.format(folder_id))
-    return [get_data(int(id)) for id in children_ids]
+    if children_ids:
+        return [int(id) for id in children_ids]
+    return None
 
 
 def set_children(folder_id, children):
@@ -98,10 +100,14 @@ def rm_child(folder_id, file_id):
 
 def bubble_delete(file_id, root_id):
     """
-    Delete file's parent, grandparent, grand grandparent, ... (bottom up) except root directory.
+    Delete file's parent, grandparent, grand grandparent, ..., root (bottom up).
+    "File" refers both to normal files and folders.
     """
     if file_id == root_id:
+        r.delete('{}:data'.format(root_id))
         return
-    parent_id = get_data(file_id=file_id).get('parent_id')
-    r.delete(parent_id)
-    bubble_delete(file_id=parent_id, root_id=root_id)
+    file = get_data(file_id=file_id)
+    if file:  # if file is None, it means that all folders "above" were deleted
+        parent_id = file.get('parent_id')
+        r.delete('{}:data'.format(file_id))
+        bubble_delete(file_id=parent_id, root_id=root_id)
