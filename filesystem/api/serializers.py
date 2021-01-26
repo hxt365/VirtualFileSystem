@@ -51,6 +51,14 @@ class FileSerializer(serializers.ModelSerializer):
         model = File
         fields = ['name', 'created_at', 'updated_at', 'size']
 
+    def to_representation(self, instance):
+        ret = super().to_representation(instance)
+        if instance.is_folder:
+            ret['name'] += '/'
+        if hasattr(instance, 'to_dot'):
+            ret['name'] = '.'
+        return ret
+
 
 class LsSerializer(serializers.Serializer):
     """

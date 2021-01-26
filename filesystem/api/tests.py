@@ -257,6 +257,26 @@ class LsAPIViewTestCase(BaseAPITestCase):
                     'size': 5,
                 }),
             ]),
+            ('/', [
+                OrderedDict({
+                    'name': './',
+                    'created_at': str(repo._get_root_directory().created_at).replace('+00:00', 'Z').replace(' ',
+                                                                                                            'T'),
+                    'updated_at': str(repo._get_root_directory().updated_at).replace('+00:00', 'Z').replace(' ',
+                                                                                                            'T'),
+                    'size': 5,
+                }),
+                OrderedDict({
+                    'name': 'abc/',
+                    'created_at': str(repo.get_file(filepath=FilePath('/abc')).created_at).replace('+00:00',
+                                                                                                   'Z').replace(' ',
+                                                                                                                'T'),
+                    'updated_at': str(repo.get_file(filepath=FilePath('/abc')).updated_at).replace('+00:00',
+                                                                                                   'Z').replace(' ',
+                                                                                                                'T'),
+                    'size': 5,
+                }),
+            ]),
         ]
         for folder_path, items in testcases:
             data = {

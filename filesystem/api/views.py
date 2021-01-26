@@ -28,6 +28,7 @@ class CommandAPIView(GenericAPIView):
             - MovedIntoSubFolder
         See filesystem/exceptions for more information.
         :return a HTTP response that contains result of the command or message of exception.
+        Note: Dont modify File instances without saving them. Serializer has side effect of updating cache.
         """
         serializer_class = self.get_serializer_class()
         serializer = serializer_class(data=request.data)
@@ -113,12 +114,7 @@ class LsAPIView(CommandAPIView):
             raise FileNotFound
         # Results are sorted alphabetically
         results = [folder] + sorted(list(folder.get_children()), key=lambda f: f.name)
-        # Add trailing slash for folders
-        for item in results:
-            if item.is_folder:
-                item.name += '/'
-        # Change name of current directory
-        results[0].name = './'
+        folder.to_dot = True # Change name of the folder to dot (.)
         return Response(data=self.serializer_class({'items': results}).data,
                         status=status.HTTP_200_OK)
 
