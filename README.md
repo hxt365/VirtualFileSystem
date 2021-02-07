@@ -1,6 +1,6 @@
 # Virtual File System (VFS)
 
-Back-end part of 3-day-long project Virtual File System.
+Back-end part of 3-day-long project Virtual File System.  
 In this project, I built a simple web-based file system, that contains only folders and files. Each folder itself is a
 group of file(s) and folder(s). The VFS must provide following interfaces:
 
