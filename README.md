@@ -13,6 +13,10 @@ group of file(s) and folder(s). The VFS must provide following interfaces:
 7. `mv PATH FOLDER_PATH` move a file/folder at `PATH` **into** the destination `FOLDER_PATH`.
 8. `rm PATH [PATH2 PATH3...]`: remove files/folders at the specified `PATH`(s)
 
+# Demo
+
+![VFS Terminal](https://user-images.githubusercontent.com/16115992/105859089-2cec9980-5ffd-11eb-8d5d-5a1975bbe72d.png)
+
 ## You can run
 
 ```bash
